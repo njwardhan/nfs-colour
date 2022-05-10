@@ -2,6 +2,7 @@
 """
 N-Dimensional Array Computations Backend
 ========================================
+
 Defines the objects enabling the various n-dimensional array computations
 backend.
 """
@@ -20,11 +21,11 @@ __status__ = 'Production'
 
 __all__ = [
     'get_ndimensional_array_backend', '_set_ndimensional_array_backend',
-    'ndimensional_array_backend', 'NDimensionalArrayBackend'
+    'ndarray_backend', 'NDimensionalArrayBackend'
 ]
 
 _NDIMENSIONAL_ARRAY_BACKEND = os.environ.get(
-    'COLOUR_SCIENCE__NDIMENSIONAL_ARRAY_BACKEND', 'Cupy').lower()
+    'COLOUR_SCIENCE__NDIMENSIONAL_ARRAY_BACKEND', 'Numpy').lower()
 
 
 def get_ndimensional_array_backend():
@@ -32,7 +33,7 @@ def get_ndimensional_array_backend():
     return _NDIMENSIONAL_ARRAY_BACKEND
 
 
-def _set_ndimensional_array_backend(backend='Cupy'):
+def set_ndimensional_array_backend(backend='Numpy'):
     global _NDIMENSIONAL_ARRAY_BACKEND
 
     backend = str(backend).lower()
@@ -42,19 +43,20 @@ def _set_ndimensional_array_backend(backend='Cupy'):
     _NDIMENSIONAL_ARRAY_BACKEND = backend
 
 
-class ndimensional_array_backend(object):
+class _ndarray_backend(object):
     def __init__(self, backend):
-        print("helpman")
         self._backend = backend
         self._previous_backend = get_ndimensional_array_backend()
+        print(self._backend)
+        print(self._previous_backend)
+        print('key')
 
     def __enter__(self):
-        _set_ndimensional_array_backend(self._backend)
-
+        set_ndimensional_array_backend(self._backend)
         return self
-
+    
     def __exit__(self, *args):
-        _set_ndimensional_array_backend(self._previous_backend)
+        set_ndimensional_array_backend(self._previous_backend)
 
     def __call__(self, function):
         @functools.wraps(function)
@@ -128,8 +130,7 @@ class NDimensionalArrayBackend(object):
                                 for z in range(len(args[i])):
                                     if isinstance(args[i][z],
                                                   self._cupy.ndarray):
-                                        arr = self._cupy.asnumpy(args[i][z])
-                                        args[i][z] = arr
+                                        args[i][z] = self._cupy.asnumpy(args[i][z])
                                 args[i] = tuple(args[i])
                             except Exception:
                                 pass
@@ -151,5 +152,5 @@ class NDimensionalArrayBackend(object):
         else:
             return failsafe
 
-    def set_ndimensional_array_backend(self, backend):
-        _set_ndimensional_array_backend(backend)
+    def ndarray_backend(self, backend):
+        _ndarray_backend(backend)
