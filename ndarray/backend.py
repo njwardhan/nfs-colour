@@ -20,20 +20,19 @@ __email__ = 'colour-developers@colour-science.org'
 __status__ = 'Production'
 
 __all__ = [
-    'get_ndimensional_array_backend', '_set_ndimensional_array_backend',
-    'ndarray_backend', 'NDimensionalArrayBackend'
+    'NDimensionalArrayBackend'
 ]
 
 _NDIMENSIONAL_ARRAY_BACKEND = os.environ.get(
     'COLOUR_SCIENCE__NDIMENSIONAL_ARRAY_BACKEND', 'Numpy').lower()
 
 
-def get_ndimensional_array_backend():
+def _get_ndimensional_array_backend():
 
     return _NDIMENSIONAL_ARRAY_BACKEND
 
 
-def set_ndimensional_array_backend(backend='Numpy'):
+def _set_ndimensional_array_backend(backend='Numpy'):
     global _NDIMENSIONAL_ARRAY_BACKEND
 
     backend = str(backend).lower()
@@ -46,17 +45,15 @@ def set_ndimensional_array_backend(backend='Numpy'):
 class _ndarray_backend(object):
     def __init__(self, backend):
         self._backend = backend
-        self._previous_backend = get_ndimensional_array_backend()
-        print(self._backend)
-        print(self._previous_backend)
-        print('key')
+        self._previous_backend = _get_ndimensional_array_backend()
 
     def __enter__(self):
-        set_ndimensional_array_backend(self._backend)
+        _set_ndimensional_array_backend(self._backend)
+
         return self
-    
+
     def __exit__(self, *args):
-        set_ndimensional_array_backend(self._previous_backend)
+        _set_ndimensional_array_backend(self._previous_backend)
 
     def __call__(self, function):
         @functools.wraps(function)
@@ -79,17 +76,14 @@ class NDimensionalArrayBackend(object):
         self._cupy_unsupported = []
         try:
             import cupy
-            numpyList = dir(numpy)
-            cupyList = dir(cupy)
-            for i in numpyList:
-                if i not in cupyList:
-                    self._cupy_unsupported.append(i)
             self._cupy = cupy
+            for i in dir(numpy):
+                if i not in dir(cupy):
+                    self._cupy_unsupported.append(i)
         except ImportError:
             pass
 
     def __getattr__(self, attribute):
-
         try:
             failsafe = getattr(self._failsafe, attribute)
         except Exception:
@@ -101,8 +95,7 @@ class NDimensionalArrayBackend(object):
                 def checkForCupy(*args, **kwargs):
                     args = list(args)
                     for i in range(len(args)):
-                        if hasattr(self._cupy, 'ndarray') and \
-                           isinstance(args[i], self._cupy.ndarray):
+                        if isinstance(args[i], self._cupy.ndarray):
                             args[i] = self._cupy.asnumpy(args[i])
                     args = tuple(args)
 
@@ -110,6 +103,7 @@ class NDimensionalArrayBackend(object):
 
                 return checkForCupy
             return getattr(self._numpy, attribute)
+
         elif _NDIMENSIONAL_ARRAY_BACKEND == 'cupy' and self._cupy is not None:
             if attribute not in self._cupy_unsupported:
                 try:
@@ -123,17 +117,18 @@ class NDimensionalArrayBackend(object):
                     for i in range(len(args)):
                         if isinstance(args[i], self._cupy.ndarray):
                             args[i] = self._cupy.asnumpy(args[i])
-                        else:
-                            if isinstance(args[i], tuple):
+                            continue
+                        
+                        elif isinstance(args[i], tuple):
                                 args[i] = list(args[i])
-                            try:
-                                for z in range(len(args[i])):
-                                    if isinstance(args[i][z],
-                                                  self._cupy.ndarray):
-                                        args[i][z] = self._cupy.asnumpy(args[i][z])
-                                args[i] = tuple(args[i])
-                            except Exception:
-                                pass
+
+                        try:
+                            for z in range(len(args[i])):
+                                if isinstance(args[i][z], self._cupy.ndarray):
+                                    args[i][z] = self._cupy.asnumpy(args[i][z])
+                            args[i] = tuple(args[i])
+                        except Exception:
+                            pass
 
                     args = tuple(args)
                     r = failsafe(*args, **kwargs)
@@ -149,8 +144,9 @@ class NDimensionalArrayBackend(object):
                     return middleware
                 else:
                     return failsafe
+        
         else:
             return failsafe
 
     def ndarray_backend(self, backend):
-        _ndarray_backend(backend)
+        return _ndarray_backend(backend)
