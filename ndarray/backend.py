@@ -90,18 +90,6 @@ class NDimensionalArrayBackend(object):
             failsafe = None
 
         if _NDIMENSIONAL_ARRAY_BACKEND == 'numpy':
-            if attribute in ['array', 'asarray']:
-
-                def checkForCupy(*args, **kwargs):
-                    args = list(args)
-                    for i in range(len(args)):
-                        if isinstance(args[i], self._cupy.ndarray):
-                            args[i] = self._cupy.asnumpy(args[i])
-                    args = tuple(args)
-
-                    return failsafe(*args, **kwargs)
-
-                return checkForCupy
             return getattr(self._numpy, attribute)
 
         elif _NDIMENSIONAL_ARRAY_BACKEND == 'cupy' and self._cupy is not None:
@@ -111,39 +99,7 @@ class NDimensionalArrayBackend(object):
                 except AttributeError:
                     return failsafe
             else:
-
-                def middleware(*args, **kwargs):
-                    args = list(args)
-                    for i in range(len(args)):
-                        if isinstance(args[i], self._cupy.ndarray):
-                            args[i] = self._cupy.asnumpy(args[i])
-                            continue
-                        
-                        elif isinstance(args[i], tuple):
-                                args[i] = list(args[i])
-
-                        try:
-                            for z in range(len(args[i])):
-                                if isinstance(args[i][z], self._cupy.ndarray):
-                                    args[i][z] = self._cupy.asnumpy(args[i][z])
-                            args[i] = tuple(args[i])
-                        except Exception:
-                            pass
-
-                    args = tuple(args)
-                    r = failsafe(*args, **kwargs)
-                    if isinstance(r, self._numpy.ndarray):
-                        return self._cupy.array(r)
-                    elif isinstance(r, (list)):
-                        for z in range(len(r)):
-                            if isinstance(r, self._numpy.ndarray):
-                                r[z] = self._cupy.array(r[z])
-                    return r
-
-                if callable(failsafe):
-                    return middleware
-                else:
-                    return failsafe
+                return failsafe
         
         else:
             return failsafe
